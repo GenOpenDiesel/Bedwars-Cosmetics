@@ -44,12 +44,25 @@ public enum CosmeticsType {
     }
 
     public static CosmeticsType fromName(String name) {
+        if (name == null) return null;
+        String target = normalizeKey(name);
         for (CosmeticsType type : values()) {
-            if (type.name().replace("-", "").replace("_", "").equalsIgnoreCase(name)) {
+            if (normalizeKey(type.name()).equals(target)
+                    || normalizeKey(type.sectionKey).equals(target)
+                    || normalizeKey(type.formatedName).equals(target)) {
                 return type;
             }
         }
         return null;
+    }
+
+    // Menu keys (e.g. "Projectile-Trails", "Bed-Destroys") don't line up 1:1 with the
+    // enum names, so strip separators/spaces, lowercase and drop a trailing plural 's'
+    // before comparing. "Bed-Destroys" only matches via sectionKey/formatedName ("Bed Destroy").
+    private static String normalizeKey(String s) {
+        String out = s.toLowerCase().replaceAll("[^a-z0-9]", "");
+        if (out.endsWith("s")) out = out.substring(0, out.length() - 1);
+        return out;
     }
 
 }

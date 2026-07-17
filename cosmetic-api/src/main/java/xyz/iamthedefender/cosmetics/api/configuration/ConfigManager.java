@@ -104,11 +104,16 @@ public class ConfigManager {
     public ItemStack getItemStack(String path) {
         ItemStack item = null;
         String material = null;
+        String raw = getString(path);
+        if (raw == null) {
+            Bukkit.getLogger().warning("Missing item entry at config path '" + path + "' - skipping.");
+            return null;
+        }
         try {
-            String[] data = getString(path).split(":", 2);
+            String[] data = raw.split(":", 2);
             material = data[0];
             if (material.equalsIgnoreCase("player_head") || material.equalsIgnoreCase("skull_item")){
-                String[] data2 = getString(path).split(":", 3);
+                String[] data2 = raw.split(":", 3);
                 String base64 = data2[2];
                 item = getCustomSkull(base64);
                 return item;
@@ -129,11 +134,16 @@ public class ConfigManager {
     public static ItemStack getItemStack(FileConfiguration config, String path) {
         ItemStack item = null;
         String material = null;
+        String raw = config.getString(path);
+        if (raw == null) {
+            Bukkit.getLogger().warning("Missing item entry at config path '" + path + "' - skipping.");
+            return null;
+        }
         try {
-            String[] data = config.getString(path).split(":", 2);
+            String[] data = raw.split(":", 2);
             material = data[0];
             if (material.equalsIgnoreCase("player_head") || material.equalsIgnoreCase("skull_item")){
-                String[] data2 = config.getString(path).split(":", 3);
+                String[] data2 = raw.split(":", 3);
                 String base64 = data2[2];
                 item = getCustomSkull(base64);
                 return item;

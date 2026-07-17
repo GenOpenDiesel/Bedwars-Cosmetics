@@ -81,7 +81,10 @@ public abstract class WoodSkin extends Cosmetics {
             case RARITY:
                 return RarityType.valueOf(config.getString(configPath + "rarity"));
             case ITEM_STACK:
-                return config.getItemStack(configPath + "item");
+                ItemStack configItem = config.getItemStack(configPath + "item");
+                // Fall back to the code-defined block if the config entry is missing/invalid,
+                // so a stale or incomplete WoodSkins.yml can't break the shop.
+                return configItem != null ? configItem : getItem();
             default:
                 return null;
         }
