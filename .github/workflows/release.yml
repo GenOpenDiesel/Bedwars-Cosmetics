@@ -1,0 +1,56 @@
+name: Build & Release
+
+# Any push to the default branch that touches code/build files produces a new
+# GitHub Release with the shaded plugin jar attached.
+on:
+  push:
+    branches: [ "production" ]
+    paths:
+      - "**/*.java"
+      - "**/pom.xml"
+      - "cosmetic-plugin/lib/**"
+      - ".github/workflows/release.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn -B -ntp -DskipTests package --file pom.xml
+
+      - name: Read project version
+        id: ver
+        run: echo "version=$(mvn -q -ntp -Dexpression=project.version -DforceStdout help:evaluate)" >> "$GITHUB_OUTPUT"
+
+      - name: Locate built jar
+        id: jar
+        run: echo "path=$(ls build/BedWars-Cosmetics-v*.jar | head -n1)" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.ver.outputs.version }}-b${{ github.run_number }}"
+          gh release create "$TAG" \
+            "${{ steps.jar.outputs.path }}" \
+            --title "$TAG" \
+            --notes "Automated build from commit ${{ github.sha }} on branch ${{ github.ref_name }}.
+          Download the jar below and drop it into your \`plugins\` folder." \
+            --target "${{ github.sha }}"
