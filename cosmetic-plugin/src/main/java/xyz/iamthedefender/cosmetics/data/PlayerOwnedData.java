@@ -30,30 +30,36 @@ public class PlayerOwnedData{
     }
 
     public void load() {
-        try {
-            Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
-            PreparedStatement statement = connection.prepareStatement("SELECT * FROM player_owned_data WHERE uuid = ?");
+        boolean found = false;
+        // try-with-resources guarantees the connection is returned to the pool on every
+        // path (previously the "new player" branch leaked the connection, eventually
+        // exhausting the Hikari pool and freezing the main thread -> watchdog crash).
+        try (Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
+             PreparedStatement statement = connection.prepareStatement("SELECT * FROM player_owned_data WHERE uuid = ?")) {
             statement.setString(1, uuid.toString());
-            ResultSet result = statement.executeQuery();
-            if (result.next()) {
-                bedDestroy = result.getInt("bed_destroy");
-                deathCry = result.getInt("death_cry");
-                finalKillEffect = result.getInt("final_kill_effect");
-                glyph = result.getInt("glyph");
-                islandTopper = result.getInt("island_topper");
-                killMessage = result.getInt("kill_message");
-                projectileTrail = result.getInt("projectile_trail");
-                shopkeeperSkin = result.getInt("shopkeeper_skin");
-                spray = result.getInt("spray");
-                victoryDance = result.getInt("victory_dance");
-                woodSkin = result.getInt("wood_skin");
-                statement.close();
-                connection.close();
-            }else{
-                demo();
+            try (ResultSet result = statement.executeQuery()) {
+                if (result.next()) {
+                    found = true;
+                    bedDestroy = result.getInt("bed_destroy");
+                    deathCry = result.getInt("death_cry");
+                    finalKillEffect = result.getInt("final_kill_effect");
+                    glyph = result.getInt("glyph");
+                    islandTopper = result.getInt("island_topper");
+                    killMessage = result.getInt("kill_message");
+                    projectileTrail = result.getInt("projectile_trail");
+                    shopkeeperSkin = result.getInt("shopkeeper_skin");
+                    spray = result.getInt("spray");
+                    victoryDance = result.getInt("victory_dance");
+                    woodSkin = result.getInt("wood_skin");
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            return;
+        }
+        // Insert the default row only after the SELECT connection has been released.
+        if (!found) {
+            demo();
         }
     }
 
@@ -61,22 +67,18 @@ public class PlayerOwnedData{
         String sql = "INSERT INTO player_owned_data (uuid, bed_destroy, death_cry, final_kill_effect, glyph, island_topper, kill_message, projectile_trail, shopkeeper_skin, spray, victory_dance, wood_skin) " +
         "VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);";
 
-        try{
-            Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql);
+        try (Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, uuid.toString());
             statement.executeUpdate();
-            statement.close();
-            connection.close();
         }catch (SQLException e){
             e.printStackTrace();
         }
     }
 
     public void save() {
-        try {
-            Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
-            PreparedStatement statement = connection.prepareStatement("UPDATE player_owned_data SET bed_destroy = ?, death_cry = ?, final_kill_effect = ?, glyph = ?, island_topper = ?, kill_message = ?, projectile_trail = ?, shopkeeper_skin = ?, spray = ?, victory_dance = ?, wood_skin = ? WHERE uuid = ?;");
+        try (Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
+             PreparedStatement statement = connection.prepareStatement("UPDATE player_owned_data SET bed_destroy = ?, death_cry = ?, final_kill_effect = ?, glyph = ?, island_topper = ?, kill_message = ?, projectile_trail = ?, shopkeeper_skin = ?, spray = ?, victory_dance = ?, wood_skin = ? WHERE uuid = ?;")) {
             statement.setInt(1, bedDestroy);
             statement.setInt(2, deathCry);
             statement.setInt(3, finalKillEffect);
@@ -90,8 +92,6 @@ public class PlayerOwnedData{
             statement.setInt(11, woodSkin);
             statement.setString(12, uuid.toString());
             statement.executeUpdate();
-            statement.close();
-            connection.close();
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -100,6 +100,11 @@ public class PlayerOwnedData{
 
 
     public void updateOwned(){
+        // Guard against the player being offline (e.g. an async task completing after
+        // they disconnect); Bukkit.getPlayer(uuid) would be null and NPE below.
+        if (Bukkit.getPlayer(uuid) == null) {
+            return;
+        }
         setBedDestroy(0);
         setDeathCry(0);
         setFinalKillEffect(0);

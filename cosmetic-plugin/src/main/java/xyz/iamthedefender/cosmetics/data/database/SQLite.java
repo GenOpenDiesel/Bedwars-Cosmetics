@@ -51,8 +51,13 @@ public class SQLite implements IDatabase {
             config.setUsername("");
             config.setPassword("");
             config.setConnectionTestQuery("SELECT 1");
-            config.setConnectionTimeout(Integer.MAX_VALUE);
-            config.setMaximumPoolSize(100);
+            // A finite timeout means an exhausted pool throws a recoverable exception
+            // instead of blocking the calling thread forever (Integer.MAX_VALUE ms ~= 24
+            // days), which previously froze the main thread and tripped the watchdog.
+            config.setConnectionTimeout(30_000);
+            config.setLeakDetectionThreshold(10_000);
+            // SQLite is a single-writer file database; a large pool serves no purpose.
+            config.setMaximumPoolSize(10);
             config.setPoolName("COSMETICS-SQLITE");
             dataSource = new HikariDataSource(config);
             try {

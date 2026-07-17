@@ -33,8 +33,11 @@ public class PlayerManager {
     }
 
     public PlayerOwnedData getPlayerOwnedData(UUID uuid) {
-        PlayerOwnedData playerOwnedData = playerOwnedDataHashMap.computeIfAbsent(uuid, PlayerOwnedData::new);
-        playerOwnedData.load();
-        return playerOwnedData;
+        // The PlayerOwnedData constructor already loads from the DB once, on first
+        // creation. Reloading on every call meant a blocking DB round-trip on the main
+        // thread for every placeholder render, GUI open and 5s scheduler tick. Return
+        // the cached instance instead; call load()/save() explicitly when a refresh is
+        // actually needed.
+        return playerOwnedDataHashMap.computeIfAbsent(uuid, PlayerOwnedData::new);
     }
 }
