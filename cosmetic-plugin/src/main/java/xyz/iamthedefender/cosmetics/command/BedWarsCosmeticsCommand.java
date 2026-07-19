@@ -33,9 +33,23 @@ public class BedWarsCosmeticsCommand extends BaseCommand {
 
     private final CosmeticsPlugin plugin = CosmeticsPlugin.getInstance();
 
+    /**
+     * Plain /cosmetics (and unknown subcommands):
+     * staff with bwcosmetics.help gets the command list, everyone else just gets the menu.
+     */
+    @Default
+    @CatchUnknown
+    public void defaultCommand(Player player) {
+        if (player.hasPermission("bwcosmetics.help")) {
+            helpCommand(player);
+            return;
+        }
+
+        menuCommand(player);
+    }
+
     @Subcommand("help")
     @CommandPermission("bwcosmetics.help")
-    @CatchUnknown
     public void helpCommand(Player player) {
         player.sendMessage(ColorUtil.translate("&8&l======================================"));
         player.sendMessage(ColorUtil.translate("&6&l     BedWars Cosmetics — Commands"));
