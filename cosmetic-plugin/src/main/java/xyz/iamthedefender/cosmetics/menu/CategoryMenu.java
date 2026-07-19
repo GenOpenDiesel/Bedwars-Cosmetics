@@ -1,6 +1,10 @@
 package xyz.iamthedefender.cosmetics.menu;
 
 import com.cryptomorin.xseries.XSound;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.permission.Permission;
 import org.bukkit.Bukkit;
@@ -36,6 +40,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public class CategoryMenu extends ChestSystemGui {
+
+    private static final String STORE_URL = "https://bfsmc.pl";
+    // anti-spam for the "not enough coins" chat message (players click fast in the GUI)
+    private static final Map<UUID, Long> NO_COINS_COOLDOWN = new HashMap<>();
 
     ConfigManager config;
     CosmeticsType cosmeticsType;
@@ -260,6 +268,7 @@ public class CategoryMenu extends ChestSystemGui {
                 }
 
                 p.playSound(p.getLocation(), XSound.ENTITY_ENDERMAN_TELEPORT.parseSound(), 1.0f, 1.0f);
+                sendNotEnoughCoinsMessage(p, price, eco == null ? 0.0D : eco.getBalance(Bukkit.getOfflinePlayer(p.getUniqueId())));
                 return -2;
             }
 
@@ -280,6 +289,7 @@ public class CategoryMenu extends ChestSystemGui {
             api.setSelectedCosmetic(p, type, id);
             eco.withdrawPlayer(p, price);
             p.playSound(p.getLocation(), XSound.ENTITY_VILLAGER_YES.parseSound(), 1.0f, 1.0f);
+            sendPurchaseTitle(p, type, id, price);
             new CategoryMenu(cosmeticsType, title, page).open(p);
 
             DebugUtil.addMessage("Selected " + id + " for " + type + " and paid " + price + " coins");
@@ -295,6 +305,42 @@ public class CategoryMenu extends ChestSystemGui {
         return -2;
     }
 
+
+    /**
+     * Hardcoded message shown when the player cannot afford a cosmetic.
+     * The menu stays open on purpose - only the chat message is sent.
+     */
+    private void sendNotEnoughCoinsMessage(Player p, int price, double balance) {
+        long now = System.currentTimeMillis();
+        Long last = NO_COINS_COOLDOWN.get(p.getUniqueId());
+        if (last != null && now - last < 3000L) return;
+        NO_COINS_COOLDOWN.put(p.getUniqueId(), now);
+
+        long missing = (long) Math.ceil(Math.max(0.0D, price - balance));
+
+        p.sendMessage(ColorUtil.translate("&c&lNie masz tylu monet!"));
+        p.sendMessage(ColorUtil.translate("&7Koszt: &e" + price + " &7monet &8| &7Twoje monety: &e" + (long) balance));
+        p.sendMessage(ColorUtil.translate("&7Brakuje Ci: &c" + missing + " &7monet"));
+
+        TextComponent link = new TextComponent(ColorUtil.translate("&e&lKLIKNIJ TUTAJ&e, aby kupic monety na &b" + STORE_URL));
+        link.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                new ComponentBuilder(ColorUtil.translate("&7Otworz &b" + STORE_URL)).create()));
+        link.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, STORE_URL));
+        p.spigot().sendMessage(link);
+    }
+
+    /**
+     * Hardcoded title shown after a successful cosmetic purchase.
+     */
+    private void sendPurchaseTitle(Player p, CosmeticsType type, String id, int price) {
+        String name = Utility.getMSGLang(p, "cosmetics." + type.getSectionKey() + "." + id + ".name");
+        if (name == null || name.isEmpty()) name = id;
+
+        p.sendTitle(
+                ColorUtil.translate("&a&lZAKUPIONO!"),
+                ColorUtil.translate("&f" + name + " &7za &e" + price + " &7monet"),
+                10, 50, 15);
+    }
 
     public void previewClick(Player player, CosmeticsType type, String id, int price){
         Cosmetics cosmetics = CosmeticsPlugin.findCosmetic(id, type);
