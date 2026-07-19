@@ -25,7 +25,8 @@ public class PlayerJoinListener implements Listener {
                 setDefaultCosmetics(playerData, event.getPlayer());
                 playerData.createData();
             }
-            playerData.load();
+            // getPlayerData() already loaded this instance on creation; the extra load()
+            // was a second blocking query on the main thread for every join.
             updatePlayerOwnedData(event.getPlayer());
             return;
         }

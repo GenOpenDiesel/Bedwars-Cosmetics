@@ -30,26 +30,27 @@ public class PlayerData {
 
 
     public void load() {
-        try {
-            Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
-            PreparedStatement statement = connection.prepareStatement("SELECT * FROM cosmetics_player_data WHERE uuid = ?");
+        // try-with-resources guarantees the connection goes back to the pool even when
+        // the query throws; the old close()-at-the-end version leaked one connection per
+        // failure, eventually exhausting the Hikari pool and freezing the main thread.
+        try (Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
+             PreparedStatement statement = connection.prepareStatement("SELECT * FROM cosmetics_player_data WHERE uuid = ?")) {
             statement.setString(1, uuid.toString());
-            ResultSet result = statement.executeQuery();
-            if (result.next()) {
-                bedDestroy = result.getString("bed_destroy");
-                woodSkin = result.getString("wood_skin");
-                victoryDance = result.getString("victory_dance");
-                shopkeeperSkin = result.getString("shopkeeper_skin");
-                glyph = result.getString("glyph");
-                spray = result.getString("spray");
-                projectileTrail = result.getString("projectile_trail");
-                killMessage = result.getString("kill_message");
-                finalKillEffect = result.getString("final_kill_effect");
-                islandTopper = result.getString("island_topper");
-                deathCry = result.getString("death_cry");
+            try (ResultSet result = statement.executeQuery()) {
+                if (result.next()) {
+                    bedDestroy = result.getString("bed_destroy");
+                    woodSkin = result.getString("wood_skin");
+                    victoryDance = result.getString("victory_dance");
+                    shopkeeperSkin = result.getString("shopkeeper_skin");
+                    glyph = result.getString("glyph");
+                    spray = result.getString("spray");
+                    projectileTrail = result.getString("projectile_trail");
+                    killMessage = result.getString("kill_message");
+                    finalKillEffect = result.getString("final_kill_effect");
+                    islandTopper = result.getString("island_topper");
+                    deathCry = result.getString("death_cry");
+                }
             }
-            statement.close();
-            connection.close();
         } catch (SQLException e) {
             Bukkit.getLogger().severe("Failed to load player-data: " + e.getMessage());
         }
@@ -59,9 +60,8 @@ public class PlayerData {
         String sql = "INSERT INTO cosmetics_player_data (uuid, bed_destroy, wood_skin, victory_dance, shopkeeper_skin, glyph, spray, projectile_trail, kill_message, final_kill_effect, island_topper, death_cry) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
-        try {
-            Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
-            PreparedStatement statement = connection.prepareStatement(sql);
+        try (Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, uuid.toString());
             statement.setString(2, bedDestroy);
             statement.setString(3, woodSkin);
@@ -75,19 +75,16 @@ public class PlayerData {
             statement.setString(11, islandTopper);
             statement.setString(12, deathCry);
             statement.executeUpdate();
-            statement.close();
-            connection.close();
         }catch (SQLException e){
             e.printStackTrace();
         }
     }
 
     public void save() {
-        try {
-            DebugUtil.addMessage("Saving player-data for " + uuid.toString());
-            Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
-            PreparedStatement statement = connection.prepareStatement(
-                    "UPDATE cosmetics_player_data SET bed_destroy = ?, wood_skin = ?, victory_dance = ?, shopkeeper_skin = ?, glyph = ?, spray = ?, projectile_trail = ?, kill_message = ?, final_kill_effect = ?, island_topper = ?, death_cry = ? WHERE uuid = ?");
+        DebugUtil.addMessage("Saving player-data for " + uuid.toString());
+        try (Connection connection = CosmeticsPlugin.getInstance().getRemoteDatabase().getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE cosmetics_player_data SET bed_destroy = ?, wood_skin = ?, victory_dance = ?, shopkeeper_skin = ?, glyph = ?, spray = ?, projectile_trail = ?, kill_message = ?, final_kill_effect = ?, island_topper = ?, death_cry = ? WHERE uuid = ?")) {
             statement.setString(1, bedDestroy);
             statement.setString(2, woodSkin);
             statement.setString(3, victoryDance);
@@ -101,8 +98,6 @@ public class PlayerData {
             statement.setString(11, deathCry);
             statement.setString(12, uuid.toString());
             statement.executeUpdate();
-            statement.close();
-            connection.close();
         } catch (SQLException e) {
             Bukkit.getLogger().severe("Failed to save player-data: " + e.getMessage());
         }

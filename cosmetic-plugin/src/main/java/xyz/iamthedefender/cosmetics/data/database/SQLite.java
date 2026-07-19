@@ -32,8 +32,11 @@ public class SQLite implements IDatabase {
     public void connect(){
         boolean needConnecting = dataSource == null;
         if (!needConnecting){
-            try {
-                dataSource.getConnection().createStatement();
+            // The health check must release its connection, otherwise every call to
+            // connect() permanently burns one slot out of the pool.
+            try (Connection connection = dataSource.getConnection();
+                 Statement statement = connection.createStatement()) {
+                statement.execute("SELECT 1");
             } catch (SQLException e) {
                 needConnecting = true;
             }
@@ -60,8 +63,9 @@ public class SQLite implements IDatabase {
             config.setMaximumPoolSize(10);
             config.setPoolName("COSMETICS-SQLITE");
             dataSource = new HikariDataSource(config);
-            try {
-                dataSource.getConnection();
+            // Probe the pool once at startup; close it again so the slot stays available.
+            try (Connection ignored = dataSource.getConnection()) {
+                // connection is valid
             } catch (SQLException e) {
                 Bukkit.getLogger().severe("There was an error getting the connection for database! error: " + e.getMessage());
             }
