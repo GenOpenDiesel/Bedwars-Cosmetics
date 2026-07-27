@@ -432,27 +432,38 @@ public class StartupUtils
     }
 
     public static Location getCosmeticLocation() {
-        World world = Bukkit.getWorld(CosmeticsPlugin.getInstance().getConfig().getString("cosmetic-preview.cosmetic-location.world"));
-        double x = CosmeticsPlugin.getInstance().getConfig().getDouble("cosmetic-preview.cosmetic-location.x");
-        double y = CosmeticsPlugin.getInstance().getConfig().getDouble("cosmetic-preview.cosmetic-location.y");
-        double z = CosmeticsPlugin.getInstance().getConfig().getDouble("cosmetic-preview.cosmetic-location.z");
-        float yaw = (float) CosmeticsPlugin.getInstance().getConfig().getDouble("cosmetic-preview.cosmetic-location.yaw");
-        float pitch = (float) CosmeticsPlugin.getInstance().getConfig().getDouble("cosmetic-preview.cosmetic-location.pitch");
-
-        Location location = new Location(world, x, y, z, yaw, pitch);
-        location.setX(location.getBlockX() + 0.5);
-        location.setZ(location.getBlockZ() + 0.5);
-        location.getChunk().load(true);
-        return location;
+        return readPreviewLocation("cosmetic-location");
     }
 
     public static Location getPlayerLocation() {
-        World world = Bukkit.getWorld(CosmeticsPlugin.getInstance().getConfig().getString("cosmetic-preview.player-location.world"));
-        double x = CosmeticsPlugin.getInstance().getConfig().getDouble("cosmetic-preview.player-location.x");
-        double y = CosmeticsPlugin.getInstance().getConfig().getDouble("cosmetic-preview.player-location.y");
-        double z = CosmeticsPlugin.getInstance().getConfig().getDouble("cosmetic-preview.player-location.z");
-        float yaw = (float) CosmeticsPlugin.getInstance().getConfig().getDouble("cosmetic-preview.player-location.yaw");
-        float pitch = (float) CosmeticsPlugin.getInstance().getConfig().getDouble("cosmetic-preview.player-location.pitch");
+        return readPreviewLocation("player-location");
+    }
+
+    /**
+     * Reads one of the cosmetic-preview locations from config. Returns null (instead of
+     * throwing) when the world is not configured or not loaded - the preview is optional,
+     * so an unset location must not blow up the InventoryClickEvent handler.
+     */
+    private static Location readPreviewLocation(String key) {
+        String path = "cosmetic-preview." + key + ".";
+        String worldName = CosmeticsPlugin.getInstance().getConfig().getString(path + "world");
+
+        if (worldName == null || worldName.trim().isEmpty()) {
+            warnMissingPreviewLocation(key, "nie ustawiono swiata w config.yml (" + path + "world)");
+            return null;
+        }
+
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) {
+            warnMissingPreviewLocation(key, "swiat '" + worldName + "' nie jest wczytany");
+            return null;
+        }
+
+        double x = CosmeticsPlugin.getInstance().getConfig().getDouble(path + "x");
+        double y = CosmeticsPlugin.getInstance().getConfig().getDouble(path + "y");
+        double z = CosmeticsPlugin.getInstance().getConfig().getDouble(path + "z");
+        float yaw = (float) CosmeticsPlugin.getInstance().getConfig().getDouble(path + "yaw");
+        float pitch = (float) CosmeticsPlugin.getInstance().getConfig().getDouble(path + "pitch");
 
         Location location = new Location(world, x, y, z, yaw, pitch);
         location.setX(location.getBlockX() + 0.5);
@@ -460,6 +471,17 @@ public class StartupUtils
         location.getChunk().load(true);
         return location;
     }
+
+    /** Warns once per key so a misconfigured preview does not spam the console on every click. */
+    private static void warnMissingPreviewLocation(String key, String reason) {
+        if (!WARNED_PREVIEW_LOCATIONS.add(key)) return;
+        CosmeticsPlugin.getInstance().getLogger().warning(
+                "Podglad kosmetykow (" + key + ") jest wylaczony: " + reason
+                        + ". Ustaw cosmetic-preview." + key + " w config.yml, zeby wlaczyc podglad.");
+    }
+
+    private static final java.util.Set<String> WARNED_PREVIEW_LOCATIONS =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     public static void addEntityHideListener(){
         CosmeticsPlugin.getInstance().getProtocolManager().addPacketListener(new PacketAdapter(CosmeticsPlugin.getInstance(), PacketType.Play.Server.SPAWN_ENTITY) {

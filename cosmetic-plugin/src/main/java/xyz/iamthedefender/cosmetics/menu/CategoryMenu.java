@@ -355,6 +355,13 @@ public class CategoryMenu extends ChestSystemGui {
         Location playerLocation = StartupUtils.getPlayerLocation();
         Location previewLocation = StartupUtils.getCosmeticLocation();
 
+        // Podglad nieskonfigurowany - zachowujemy sie tak, jakby ta kategoria go nie miala
+        // (klik dziala jak zwykly zakup/wybor) zamiast wywalac wyjatek na kazdym kliknieciu.
+        if (playerLocation == null || previewLocation == null) {
+            onClick(player, type, price, id, false);
+            return;
+        }
+
         AtomicBoolean found = new AtomicBoolean(false);
         CosmeticsPlugin.getInstance().getPreviewList().stream().filter(preview -> preview.getType() == type).findAny().ifPresent(cosmeticPreview -> {
             cosmeticPreview.showPreview(player, cosmetics, previewLocation, playerLocation);

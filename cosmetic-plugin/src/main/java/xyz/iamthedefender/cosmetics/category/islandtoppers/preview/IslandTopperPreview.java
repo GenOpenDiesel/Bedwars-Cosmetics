@@ -52,6 +52,16 @@ public class IslandTopperPreview {
 
         UUID playerUUID = player.getUniqueId();
 
+        // Lokalizacje czytamy PRZED wyczyszczeniem ekwipunku - inaczej brak konfiguracji
+        // podgladu konczy sie zabraniem graczowi itemow bez ich przywrocenia.
+        Location cosmeticLocation = getCosmeticLocation();
+        Location playerLocation = getPlayerLocation();
+
+        if (cosmeticLocation == null || playerLocation == null) {
+            player.sendMessage(ColorUtil.translate("&cEither Preview location or Player location is not set! Contact the admin."));
+            return;
+        }
+
         Location beforeLocation = player.getLocation().clone();
         Inventory playerInv = player.getInventory();
         if (!inventories.containsKey(playerUUID)) inventories.put(playerUUID, new HashMap<>());
@@ -68,17 +78,6 @@ public class IslandTopperPreview {
 
         playerInv.clear();
         player.closeInventory();
-        Location cosmeticLocation = null, playerLocation = null;
-
-        try {
-            cosmeticLocation = getCosmeticLocation();
-            playerLocation = getPlayerLocation();
-        } catch (Exception exception) {
-            exception.printStackTrace();
-            player.sendMessage(ColorUtil.translate("&cEither Preview location or Player location is not set! Contact the admin."));
-        }
-
-        if (cosmeticLocation == null || playerLocation == null) return;
 
         final Location finalPlayerLocation = playerLocation;
         final Location finalCosmeticLocation = cosmeticLocation;
