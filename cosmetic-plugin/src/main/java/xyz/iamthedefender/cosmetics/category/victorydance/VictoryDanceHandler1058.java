@@ -33,18 +33,21 @@ public class VictoryDanceHandler1058 implements Listener {
         if (!isVictoryDancesEnabled) return;
 
         for (UUID uuid : e.getWinners()) {
-             Player p = Bukkit.getPlayer(uuid);
+            Player p = Bukkit.getPlayer(uuid);
+            // A winner can leave before the game ends - skip them instead of throwing (and skipping everyone else).
+            if (p == null || !p.isOnline()) continue;
             String selected = CosmeticsPlugin.getInstance().getApi().getSelectedCosmetic(p, CosmeticsType.VictoryDances);
+            if (selected == null) continue;
             VictoryDancesExecuteEvent event = new VictoryDancesExecuteEvent(p);
             Bukkit.getPluginManager().callEvent(event);
 
             if (event.isCancelled())
-                return;
+                continue;
 
             DebugUtil.addMessage("Executing " + selected + " Victory Dance for " + p.getDisplayName());
             for(VictoryDance victoryDance : StartupUtils.victoryDancesList){
                 if (selected.equals(victoryDance.getIdentifier())){
-                    if (victoryDance.getField(FieldsType.RARITY, p) == RarityType.NONE) return;
+                    if (victoryDance.getField(FieldsType.RARITY, p) == RarityType.NONE) break;
                     victoryDance.execute(p);
 
                     victoryDanceMap.put(uuid, victoryDance);
